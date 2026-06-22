@@ -2,7 +2,7 @@ name: Frontend CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
     paths:
       - 'apps/web/**'
       - 'packages/types/**'
@@ -11,7 +11,7 @@ on:
       - 'pnpm-lock.yaml'
       - '.github/workflows/frontend-ci.yml'
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
     paths:
       - 'apps/web/**'
       - 'packages/types/**'
