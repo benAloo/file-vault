@@ -1,19 +1,19 @@
 use axum::{
+    Json, Router,
     extract::{FromRequestParts, State},
-    http::{request::Parts, HeaderValue, StatusCode},
+    http::{HeaderValue, StatusCode, request::Parts},
     response::{IntoResponse, Response},
     routing::get,
-    Json, Router,
 };
 
-use jsonwebtoken::{decode, DecodingKey, Validation};
+use jsonwebtoken::{DecodingKey, Validation, decode};
 use serde::{Deserialize, Serialize};
-use sqlx::postgres::PgPoolOptions;
-use sqlx::Row;
 use sqlx::PgPool;
+use sqlx::Row;
+use sqlx::postgres::PgPoolOptions;
+use std::collections::BTreeSet;
 use std::net::SocketAddr;
 use std::str::FromStr;
-use std::collections::BTreeSet;
 use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 
 // Error Handling Architecture
@@ -32,10 +32,16 @@ impl IntoResponse for AppError {
         let (status, error_message) = match self {
             AppError::Database(err) => {
                 eprintln!("Database Error occurred: {:?}", err);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Database connection failure".to_string())
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Database connection failure".to_string(),
+                )
             }
             AppError::Auth(msg) => (StatusCode::UNAUTHORIZED, msg),
-            AppError::Internal => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()),
+            AppError::Internal => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Internal server error".to_string(),
+            ),
         };
 
         let body = Json(serde_json::json!({"error": error_message}));
@@ -68,7 +74,11 @@ fn build_allowed_origins() -> Result<AllowOrigin, anyhow::Error> {
     origins.insert("http://127.0.0.1:5173".to_string());
 
     if let Ok(configured) = std::env::var("CORS_ALLOWED_ORIGINS") {
-        for origin in configured.split(',').map(str::trim).filter(|value| !value.is_empty()) {
+        for origin in configured
+            .split(',')
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
             origins.insert(origin.to_string());
         }
     }
@@ -90,16 +100,12 @@ fn build_allowed_origins() -> Result<AllowOrigin, anyhow::Error> {
 }
 
 impl<S> FromRequestParts<S> for UserSession
-where 
+where
     S: Send + Sync,
 {
     type Rejection = AppError;
 
-    async fn from_request_parts(
-        parts: &mut Parts,
-        _state: &S,
-    ) -> Result<Self, Self::Rejection>
-    {
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         let auth_header = parts
             .headers
             .get(axum::http::header::AUTHORIZATION)
@@ -179,7 +185,10 @@ async fn health_check(State(state): State<AppState>) -> Result<Json<serde_json::
 }
 
 // Protected resource dummy placeholder (to demonstrate the JWT extractor working)
-async fn get_my_quota(session: UserSession, State(state): State<AppState>) -> Result<Json<serde_json::Value>, AppError> {
+async fn get_my_quota(
+    session: UserSession,
+    State(state): State<AppState>,
+) -> Result<Json<serde_json::Value>, AppError> {
     // Query local user profile config
     let record = sqlx::query(
         "SELECT storage_quota_bytes, storage_used_bytes FROM public.profiles WHERE id = $1::uuid",
@@ -197,7 +206,6 @@ async fn get_my_quota(session: UserSession, State(state): State<AppState>) -> Re
         "used_bytes": used_bytes
     })))
 }
-
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
@@ -229,10 +237,10 @@ async fn main() -> Result<(), anyhow::Error> {
         .layer(cors)
         .with_state(state);
 
-    let bind_addr = std::env::var("API_BIND_ADDR")
-        .unwrap_or_else(|_| "127.0.0.1:8081".to_string());
-    let addr = SocketAddr::from_str(&bind_addr)
-        .map_err(|_| anyhow::anyhow!("API_BIND_ADDR must be a valid socket address (e.g. 127.0.0.1:8081)"))?;
+    let bind_addr = std::env::var("API_BIND_ADDR").unwrap_or_else(|_| "127.0.0.1:8081".to_string());
+    let addr = SocketAddr::from_str(&bind_addr).map_err(|_| {
+        anyhow::anyhow!("API_BIND_ADDR must be a valid socket address (e.g. 127.0.0.1:8081)")
+    })?;
     println!("File Vault API listening safely on http://{}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;

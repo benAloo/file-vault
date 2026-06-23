@@ -28,8 +28,8 @@ function App() {
     try {
       const q = await getQuota(token)
       setQuota(`used ${q.used_bytes} / ${q.quota_bytes}`)
-    } catch (e: any) {
-      setError(e.message || String(e))
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e))
     }
   }
 
